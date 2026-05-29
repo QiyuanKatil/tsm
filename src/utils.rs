@@ -179,7 +179,7 @@ pub fn extract_hostname(url: &str) -> anyhow::Result<String> {
         .next()
         .unwrap_or(without_scheme)
         .split('@') // strip userinfo (e.g. user:pass@host)
-        .last()
+        .next_back()
         .unwrap_or(without_scheme);
     if host.is_empty() {
         anyhow::bail!("Could not extract hostname from URL: {}", url);

@@ -427,7 +427,7 @@ async fn handle_config_rm(tool: &str) -> Result<()> {
 // ── Tools handler ─────────────────────────────────────────────────────────
 
 async fn handle_tools() -> Result<()> {
-    let supported: Vec<&str> = sources::SUPPORTED_TOOLS.iter().copied().collect();
+    let supported: Vec<&str> = sources::SUPPORTED_TOOLS.to_vec();
 
     // Build display items: ✓ for enabled, blank for disabled
     let items: Vec<String> = supported
