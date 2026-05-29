@@ -18,6 +18,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: 1.85.0
           components: rustfmt, clippy
       - uses: swatinem/rust-cache@v2
       - name: Check formatting
