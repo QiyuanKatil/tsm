@@ -232,8 +232,7 @@ async fn handle_test(name: &str) -> Result<()> {
             if let Some(ref current_url) = current_url_opt {
                 let current_res = results.iter().find(|r| {
                     r.mirror.url == *current_url
-                        || r.mirror.url.trim_end_matches('/')
-                            == current_url.trim_end_matches('/')
+                        || r.mirror.url.trim_end_matches('/') == current_url.trim_end_matches('/')
                 });
 
                 if let Some(cur) = current_res {

@@ -31,15 +31,14 @@ pub fn load_user_config() -> Result<HashMap<String, Vec<Mirror>>> {
 /// Write user-custom mirrors to `~/.config/tsm/mirrors.json`.
 /// Creates parent directories as needed.
 pub fn save_user_config(map: &HashMap<String, Vec<Mirror>>) -> Result<()> {
-    let path = get_config_path()
-        .ok_or_else(|| anyhow::anyhow!("Could not determine config directory"))?;
+    let path =
+        get_config_path().ok_or_else(|| anyhow::anyhow!("Could not determine config directory"))?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
             .with_context(|| format!("Failed to create config dir: {:?}", parent))?;
     }
     let json = serde_json::to_string_pretty(map)?;
-    fs::write(&path, json)
-        .with_context(|| format!("Failed to write user config: {:?}", path))?;
+    fs::write(&path, json).with_context(|| format!("Failed to write user config: {:?}", path))?;
     Ok(())
 }
 
@@ -103,15 +102,14 @@ fn load_settings() -> Settings {
 }
 
 fn save_settings(settings: &Settings) -> Result<()> {
-    let path = settings_path()
-        .ok_or_else(|| anyhow::anyhow!("Could not determine settings directory"))?;
+    let path =
+        settings_path().ok_or_else(|| anyhow::anyhow!("Could not determine settings directory"))?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
             .with_context(|| format!("Failed to create settings dir: {:?}", parent))?;
     }
     let toml_str = toml::to_string_pretty(settings)?;
-    fs::write(&path, toml_str)
-        .with_context(|| format!("Failed to write settings: {:?}", path))?;
+    fs::write(&path, toml_str).with_context(|| format!("Failed to write settings: {:?}", path))?;
     Ok(())
 }
 
