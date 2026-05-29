@@ -77,16 +77,16 @@ jobs:
         shell: bash
         run: |
           cd target/${{ matrix.target }}/release
-          tar -czf ../../../cmirror-${{ matrix.artifact_name }}${{ matrix.archive_ext }} cmirror
+          tar -czf ../../../tsm-${{ matrix.artifact_name }}${{ matrix.archive_ext }} tsm
 
       - name: Package (Windows)
         if: runner.os == 'Windows'
         shell: powershell
         run: |
           cd target/${{ matrix.target }}/release
-          Compress-Archive -Path cmirror.exe -DestinationPath ..\..\..\cmirror-${{ matrix.artifact_name }}${{ matrix.archive_ext }}
+          Compress-Archive -Path tsm.exe -DestinationPath ..\..\..\tsm-${{ matrix.artifact_name }}${{ matrix.archive_ext }}
 
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: cmirror-${{ matrix.artifact_name }}${{ matrix.archive_ext }}
+          files: tsm-${{ matrix.artifact_name }}${{ matrix.archive_ext }}
