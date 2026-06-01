@@ -14,7 +14,7 @@ docker 等多种常见开发工具。
   覆盖，用户配置为唯一数据源
 - **交互式工具开关** (`tsm tools`) — 可视化多选启用/禁用工具，禁用工具的命令自动
   拦截
-- **自定义源管理** (`tsm config add/rm`) — 添加/删除自定义镜像源，交互式多选删除
+- **自定义源管理** (`tsm add/rm`) — 添加/删除自定义镜像源，支持逗号分隔批量添加，交互式多选删除
 - **项目更名** — `tsm`（Tiny Source Manager），更短更好记
 - **命令重命名** — `status` → `ls`，更直观
 
@@ -25,7 +25,7 @@ docker 等多种常见开发工具。
 - **🛡️ 安全无忧**: 修改任何配置前强制自动备份，支持一键恢复 (`restore`)。
 - **🧠 智能推荐**: 支持 `--fastest` 参数，自动选择并应用当前网络环境下最快的源。
 - **📊 状态透视**: `tsm ls` 一目了然地查看当前所有工具正在使用的源地址及状态。
-- **➕ 自定义源**: `tsm config add` 添加自定义镜像源，配置即所得。
+- **➕ 自定义源**: `tsm add` 添加自定义镜像源（支持逗号分隔多个 URL），配置即所得。
 - **🔘 工具开关**: `tsm tools` 交互式管理工具启用/禁用，禁用工具的命令会提示
   `not enabled`。
 
@@ -103,13 +103,17 @@ $ tsm use pip aliyun
 ### 添加自定义源
 
 ```bash
-$ tsm config add pip https://example.com/pypi/simple/
+# 添加单个源
+$ tsm add pip https://example.com/pypi/simple/
+
+# 批量添加（逗号分隔）
+$ tsm add pip https://mirrors.aliyun.com/pypi/simple/,https://mirrors.tuna.tsinghua.edu.cn/pypi/simple/
 ```
 
 ### 删除自定义源（交互式多选）
 
 ```bash
-$ tsm config rm pip
+$ tsm rm pip
 ```
 
 ### 管理工具启用/禁用
@@ -117,6 +121,12 @@ $ tsm config rm pip
 ```bash
 $ tsm tools
 # 空格切换 ✓，回车保存
+```
+
+### 更新 tsm
+
+```bash
+$ tsm update
 ```
 
 ### 恢复配置
@@ -133,9 +143,10 @@ $ tsm restore pip
 | `tsm test <tool>`                    | 基准测试所有源             |
 | `tsm use <tool> <name> \| --fastest` | 应用新镜像                 |
 | `tsm restore <tool>`                 | 恢复到备份或默认           |
-| `tsm config add <tool> <url>`        | 添加自定义镜像源           |
-| `tsm config rm <tool>`               | 删除自定义镜像源（交互式） |
-| `tsm tools`                          | 启用/禁用工具（交互式）    |
+| `tsm add <tool> <url>[,<url>...]`    | 添加自定义镜像源（支持逗号分隔） |
+| `tsm rm <tool>`                      | 删除自定义镜像源（交互式）       |
+| `tsm update`                         | 更新 tsm 到最新版本              |
+| `tsm tools`                          | 启用/禁用工具（交互式）          |
 
 ## 🗺️ 配置目录
 

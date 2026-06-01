@@ -51,29 +51,22 @@ enum Commands {
         /// The tool name
         name: String,
     },
-    /// Manage custom mirror sources
-    Config {
-        #[command(subcommand)]
-        command: ConfigCommands,
-    },
-    /// Enable or disable tools interactively
-    Tools,
-}
-
-#[derive(Subcommand)]
-enum ConfigCommands {
-    /// Add a custom mirror source (e.g., tsm config add pip https://example.com/pypi/simple/)
+    /// Add custom mirror source(s) (e.g., tsm add pip https://example.com/pypi/simple/)
     Add {
         /// The tool name (pip, npm, docker, etc.)
         tool: String,
-        /// The mirror URL to add
-        url: String,
+        /// Mirror URL(s) to add, comma-separated
+        urls: String,
     },
-    /// Remove mirror sources interactively (e.g., tsm config rm pip)
+    /// Remove mirror sources interactively (e.g., tsm rm pip)
     Rm {
         /// The tool name
         tool: String,
     },
+    /// Enable or disable tools interactively
+    Tools,
+    /// Update tsm to the latest release
+    Update,
 }
 
 #[tokio::main]
@@ -93,11 +86,10 @@ async fn main() -> Result<()> {
             fastest,
         } => handle_use(&name, source, fastest).await?,
         Commands::Restore { name } => handle_restore(&name).await?,
-        Commands::Config { command } => match command {
-            ConfigCommands::Add { tool, url } => handle_config_add(&tool, &url).await?,
-            ConfigCommands::Rm { tool } => handle_config_rm(&tool).await?,
-        },
+        Commands::Add { tool, urls } => handle_add(&tool, &urls).await?,
+        Commands::Rm { tool } => handle_rm(&tool).await?,
         Commands::Tools => handle_tools().await?,
+        Commands::Update => handle_update().await?,
     }
 
     Ok(())
@@ -344,36 +336,42 @@ async fn handle_restore(name: &str) -> Result<()> {
     Ok(())
 }
 
-// ── Config handlers ───────────────────────────────────────────────────────
+// ── Add / Rm handlers ─────────────────────────────────────────────────────
 
-async fn handle_config_add(tool: &str, url: &str) -> Result<()> {
+async fn handle_add(tool: &str, urls: &str) -> Result<()> {
     // Validate the tool is supported
     let _manager = get_manager(tool)?;
 
-    // Parse URL to extract hostname for auto-generated name
-    let name = utils::extract_hostname(url)?;
+    for url in urls.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        // Parse URL to extract hostname for auto-generated name
+        let name = utils::extract_hostname(url)?;
 
-    // Check for duplicate URL (against merged candidates)
-    let candidates = config::get_candidates(tool);
-    let norm = utils::normalize_url(url);
-    if candidates
-        .iter()
-        .any(|m| utils::normalize_url(&m.url) == norm)
-    {
-        bail!("Mirror with URL '{}' already exists for {}.", url, tool);
+        // Check for duplicate URL (against merged candidates)
+        let candidates = config::get_candidates(tool);
+        let norm = utils::normalize_url(url);
+        if candidates
+            .iter()
+            .any(|m| utils::normalize_url(&m.url) == norm)
+        {
+            println!(
+                "Mirror with URL '{}' already exists for {}, skipping.",
+                url, tool
+            );
+            continue;
+        }
+
+        // Load user config, add, save
+        let mut user_config = config::load_user_config()?;
+        let mirrors = user_config.entry(tool.to_string()).or_default();
+        mirrors.push(Mirror::new(&name, url));
+        config::save_user_config(&user_config)?;
+
+        println!("Added '{}' ({}) to {}.", name, url, tool);
     }
-
-    // Load user config, add, save
-    let mut user_config = config::load_user_config()?;
-    let mirrors = user_config.entry(tool.to_string()).or_default();
-    mirrors.push(Mirror::new(&name, url));
-    config::save_user_config(&user_config)?;
-
-    println!("Added '{}' ({}) to {}.", name, url, tool);
     Ok(())
 }
 
-async fn handle_config_rm(tool: &str) -> Result<()> {
+async fn handle_rm(tool: &str) -> Result<()> {
     // Validate the tool is supported
     let _manager = get_manager(tool)?;
 
@@ -422,6 +420,76 @@ async fn handle_config_rm(tool: &str) -> Result<()> {
     config::save_user_config(&user_config)?;
 
     Ok(())
+}
+
+// ── Update handler ────────────────────────────────────────────────────────
+
+async fn handle_update() -> Result<()> {
+    let release_name = match (std::env::consts::OS, std::env::consts::ARCH) {
+        ("linux", "x86_64") => "linux-x64",
+        ("macos", "aarch64") => "macos-arm64",
+        _ => {
+            bail!(
+                "No prebuilt release for {}-{}. Build from source: https://github.com/QiyuanKatil/tsm",
+                std::env::consts::OS,
+                std::env::consts::ARCH
+            );
+        }
+    };
+
+    let url = format!(
+        "https://github.com/QiyuanKatil/tsm/releases/latest/download/tsm-{}.tar.gz",
+        release_name
+    );
+
+    println!("Downloading tsm-{}...", release_name);
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(120))
+        .build()?;
+    let response = client.get(&url).send().await?;
+
+    if !response.status().is_success() {
+        bail!(
+            "Download failed: HTTP {} — is the release available for {}-{}?",
+            response.status(),
+            std::env::consts::OS,
+            std::env::consts::ARCH
+        );
+    }
+
+    let bytes = response.bytes().await?;
+    println!("Downloaded {} bytes.", bytes.len());
+
+    // Decompress gzip + extract tar to find the tsm binary
+    let gz = flate2::read::GzDecoder::new(&bytes[..]);
+    let mut archive = tar::Archive::new(gz);
+
+    let current_exe = std::env::current_exe()?;
+    let tmp_path = current_exe.with_extension("tmp");
+
+    for entry in archive.entries()? {
+        let mut entry = entry?;
+        let path = entry.path()?;
+        if path.file_name().map(|n| n == "tsm").unwrap_or(false) {
+            let mut out = std::fs::File::create(&tmp_path)?;
+            std::io::copy(&mut entry, &mut out)?;
+
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let mut perms = out.metadata()?.permissions();
+                perms.set_mode(0o755);
+                std::fs::set_permissions(&tmp_path, perms)?;
+            }
+
+            std::fs::rename(&tmp_path, &current_exe)?;
+            println!("Updated to the latest version!");
+            return Ok(());
+        }
+    }
+
+    bail!("Archive does not contain 'tsm' binary");
 }
 
 // ── Tools handler ─────────────────────────────────────────────────────────

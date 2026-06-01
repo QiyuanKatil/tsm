@@ -19,6 +19,8 @@ thiserror = "2.0.17"
 directories = "6.0.0"
 indicatif = "0.18.3"
 dialoguer = "0.11"
+flate2 = "1.0"
+tar = "0.4"
 
 [dev-dependencies]
 tempfile = "3.23.0"
